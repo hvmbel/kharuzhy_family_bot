@@ -7,8 +7,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID", "0"))
 
 KIDS = [
-    {"name": "Петя", "username": "@petya"},
-    {"name": "Маша", "username": "@masha"}
+    {"name": "Светанька", "username": "@svetlana_kharuzhaya"},
+    {"name": "Володя", "username": "@hvmbel"}
 ]
 
 current_index = 0
