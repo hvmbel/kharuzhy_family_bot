@@ -1,26 +1,87 @@
 import os
-import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import threading
+import asyncio
+from flask import Flask
 
-# Логгирование в stdout (чтобы видеть в Google Cloud)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
 )
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# --- Переменные окружения ---
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+CHAT_ID = int(os.environ.get("CHAT_ID", "0"))
 
+# --- Данные о детях ---
+KIDS = [
+    {"Светанька": "@svetlana_kharuzhaya"},
+    {"Володя": "@hvmbel"},
+]
+current_index = 0
+photos_received = []
+
+# --- Telegram-логика ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    logging.info(f"Chat ID: {chat_id}")
+    print("Chat ID:", update.effective_chat.id)
     await update.message.reply_text("Бот активен!")
 
-# Главное: никаких потоков!
-def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.run_polling()  # <-- запускается напрямую, без asyncio, без threading
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global photos_received
+    if update.message:
+        photos_received.append(update.message.photo[-1].file_id)
 
-if __name__ == '__main__':
-    main()
+    if len(photos_received) < 3:
+        await context.bot.send_message(
+            chat_id=CHAT_ID,
+            text=f"{KIDS[current_index]['username']}, ты не прислал(а) 3 фото. Дежурный!"
+        )
+
+async def notify_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global current_index
+    current_index = (current_index + 1) % len(KIDS)
+    await context.bot.send_message(
+        chat_id=CHAT_ID,
+        text=f"🔔 Завтра дежурит {KIDS[current_index]['username']}"
+    )
+
+async def notify_kid(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(
+        chat_id=CHAT_ID,
+        text=f"⏰ Напоминание: сегодня дежурит {KIDS[current_index]['username']}"
+    )
+
+async def check_photos(context: ContextTypes.DEFAULT_TYPE):
+    if len(photos_received) < 3:
+        await context.bot.send_message(
+            chat_id=CHAT_ID,
+            text=f"⚠️ {KIDS[current_index]['username']}, ты не прислал(а) 3 фото до 22:15!"
+        )
+
+# --- Запуск Telegram-бота ---
+async def run_bot():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    app.job_queue.run_daily(notify_kid, time=asyncio.time(hour=21, minute=45))
+    app.job_queue.run_daily(check_photos, time=asyncio.time(hour=22, minute=15))
+
+    await app.run_polling()
+
+# --- Flask для Cloud Run ---
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return "Бот работает!"
+
+# --- Главная точка запуска ---
+if __name__ == "__main__":
+    threading.Thread(target=lambda: asyncio.run(run_bot())).start()
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
