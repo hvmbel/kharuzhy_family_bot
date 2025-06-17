@@ -1,5 +1,4 @@
 import os
-import asyncio
 from flask import Flask
 from telegram import Update
 from datetime import time
@@ -10,6 +9,8 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+import threading
+import asyncio
 
 # --- Переменные окружения ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -67,7 +68,10 @@ app = Flask(__name__)
 def index():
     return "Бот работает!"
 
-# --- Главная точка запуска ---
+# --- Фоновый запуск бота ---
+def start_bot():
+    asyncio.run(run_bot())
+
 async def run_bot():
     app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -79,10 +83,10 @@ async def run_bot():
 
     await app_telegram.initialize()
     await app_telegram.start()
-    await app_telegram.run_polling()
+    await app_telegram.updater.start_polling()
+    # НЕ await app_telegram.run_polling() — мы уже используем Flask
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(run_bot())
+    threading.Thread(target=start_bot, daemon=True).start()
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
