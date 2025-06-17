@@ -1,7 +1,9 @@
+import os
+import threading
+from datetime import time
+from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from datetime import time
-import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID", "0"))
@@ -14,6 +16,7 @@ KIDS = [
 current_index = 0
 photos_received = []
 
+# --- Твоя логика Telegram-бота ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("Chat ID:", update.effective_chat.id)
     await update.message.reply_text("Бот активен!")
@@ -49,7 +52,8 @@ async def notify_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=f"🔔 Завтра дежурит {KIDS[current_index]['username']}"
     )
 
-def main():
+# --- Запуск Telegram-бота ---
+def run_bot():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -60,5 +64,15 @@ def main():
 
     app.run_polling()
 
+# --- Flask-сервер для Cloud Run ---
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return "Telegram Bot is running!", 200
+
+# --- Запуск всего ---
 if __name__ == "__main__":
-    main()
+    threading.Thread(target=run_bot).start()
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
