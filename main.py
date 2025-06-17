@@ -2,6 +2,7 @@ import os
 import asyncio
 from flask import Flask
 from telegram import Update
+from datetime import time
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -78,7 +79,7 @@ async def run_bot():
 
     await app_telegram.initialize()
     await app_telegram.start()
-    await app_telegram.updater.start_polling()
+    await app_telegram.run_polling()
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
