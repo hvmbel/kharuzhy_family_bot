@@ -53,7 +53,7 @@ async def notify_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # --- Запуск Telegram-бота ---
-def run_bot():
+async def run_bot():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -62,7 +62,11 @@ def run_bot():
     app.job_queue.run_daily(notify_kid, time(hour=21, minute=45))
     app.job_queue.run_daily(check_photos, time(hour=22, minute=15))
 
-    app.run_polling()
+    await app.run_polling()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(run_bot())
 
 # --- Flask-сервер для Cloud Run ---
 app = Flask(__name__)
