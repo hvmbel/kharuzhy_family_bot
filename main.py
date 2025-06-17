@@ -18,9 +18,8 @@ CHAT_ID = int(os.environ.get("CHAT_ID", "0"))
 
 # --- Данные о детях ---
 KIDS = [
-    {"username": "@child1"},
-    {"username": "@child2"},
-    {"username": "@child3"},
+    {"Светанька": "@svetlana_kharuzhaya"},
+    {"Володя": "@hvmbel"},
 ]
 current_index = 0
 photos_received = []
