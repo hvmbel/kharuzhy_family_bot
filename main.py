@@ -74,8 +74,8 @@ async def run_bot():
     app_telegram.add_handler(CommandHandler("start", start))
     app_telegram.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    app_telegram.job_queue.run_daily(notify_kid, time=asyncio.time(hour=21, minute=45))
-    app_telegram.job_queue.run_daily(check_photos, time=asyncio.time(hour=22, minute=15))
+    app_telegram.job_queue.run_daily(notify_kid, time=time(hour=21, minute=45))
+    app_telegram.job_queue.run_daily(check_photos, time=time(hour=22, minute=15))
 
     await app_telegram.initialize()
     await app_telegram.start()
