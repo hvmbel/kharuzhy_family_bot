@@ -1,8 +1,6 @@
 import os
-import threading
 import asyncio
 from flask import Flask
-
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -18,8 +16,8 @@ CHAT_ID = int(os.environ.get("CHAT_ID", "0"))
 
 # --- Данные о детях ---
 KIDS = [
-    {"Светанька": "@svetlana_kharuzhaya"},
-    {"Володя": "@hvmbel"},
+    {"username": "@svetlana_kharuzhaya"},
+    {"username": "@hvmbel"},
 ]
 current_index = 0
 photos_received = []
@@ -61,18 +59,6 @@ async def check_photos(context: ContextTypes.DEFAULT_TYPE):
             text=f"⚠️ {KIDS[current_index]['username']}, ты не прислал(а) 3 фото до 22:15!"
         )
 
-# --- Запуск Telegram-бота ---
-async def run_bot():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-
-    app.job_queue.run_daily(notify_kid, time=asyncio.time(hour=21, minute=45))
-    app.job_queue.run_daily(check_photos, time=asyncio.time(hour=22, minute=15))
-
-    await app.run_polling()
-
 # --- Flask для Cloud Run ---
 app = Flask(__name__)
 
@@ -81,7 +67,21 @@ def index():
     return "Бот работает!"
 
 # --- Главная точка запуска ---
+async def run_bot():
+    app_telegram = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app_telegram.add_handler(CommandHandler("start", start))
+    app_telegram.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    app_telegram.job_queue.run_daily(notify_kid, time=asyncio.time(hour=21, minute=45))
+    app_telegram.job_queue.run_daily(check_photos, time=asyncio.time(hour=22, minute=15))
+
+    await app_telegram.initialize()
+    await app_telegram.start()
+    await app_telegram.updater.start_polling()
+
 if __name__ == "__main__":
-    threading.Thread(target=lambda: asyncio.run(run_bot())).start()
+    loop = asyncio.get_event_loop()
+    loop.create_task(run_bot())
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
